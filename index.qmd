@@ -1,0 +1,198 @@
+---
+title: "Prejudice modelling submission"
+subtitle: |
+  Computational notebook
+author: 
+  - name: Matti Vuorre
+    orcid: 0000-0001-5052-066X
+    affiliation: Tilburg University
+    affiliation-url: https://www.tilburguniversity.edu/staff/m-j-vuorre
+  - name: Florian van Leeuwen
+    orcid: 0000-0002-9694-8300
+    affiliation: Tilburg University
+    affiliation-url: https://www.tilburguniversity.edu/staff/f-vanleeuwen
+date: now
+execute:
+  cache: true
+  warning: false
+  message: false
+knitr: 
+  opts_chunk: 
+    echo: false
+license: "CC BY"
+format: 
+  pdf: 
+   toc: false
+bibliography: references.bib
+---
+
+This document and its associated source code are the computational notebook for our submission to the prejudice modeling competition.
+
+```{r}
+#| label: full-code
+#| include: false
+
+# This block contains the full code for submission
+
+library(scales)
+library(mgcv)
+library(gratia)
+library(janitor)
+library(broom)
+library(knitr)
+library(tidyverse)
+
+# Load and clean competition training data
+path <- "data/train.csv"
+dir.create(dirname(path), showWarnings = FALSE)
+if (!file.exists(path)) {
+  download.file("https://osf.io/download/a7qfm/", path)
+}
+d <- read_csv(path) |> 
+  clean_names() |>
+  select(
+    bias,
+    attitude = outgroup_att,
+    i = identification_selfinvestment,
+    a = b5a,
+    tg = generalized, 
+    ts = symbolic,
+    cn = contact_friends, 
+    cq = contact_quality
+  )
+
+# Fit models
+fit_bias <- gam(
+  bias ~ 1 + 
+    s(tg, bs = "tp", k = 7) + 
+    s(ts, bs = "tp", k = 7) + 
+    s(cn, bs = "tp", k = 7) +
+    s(cq, bs = "tp", k = 7) +
+    s(i, bs = "tp", k = 7) +
+    s(a, bs = "tp", k = 7),
+  data = d,
+  method = "REML"
+)
+fit_attitude <- gam(
+  bias ~ 1 + 
+    s(ts, bs = "tp", k = 7) + 
+    s(cn, bs = "tp", k = 7) +
+    s(cq, bs = "tp", k = 7) +
+    s(a, bs = "tp", k = 7),
+  data = d
+)
+
+# Model performance
+tibble(
+  Model = c("Bias", "Attitude"),
+  fit = list(fit_bias, fit_attitude)
+  ) |> 
+  mutate(
+    r2adj = map_dbl(fit, ~glance(.x)$adj.r.squared),
+    rmse = map_dbl(fit, ~sqrt(mean(.x$residuals^2))),
+    .keep = "unused"
+  )
+```
+
+```{r}
+#| label: model-printout
+#| include: false
+
+# Create strings to put in the submission textbox
+# copy paste manually
+
+summary(fit_bias)
+summary(fit_attitude)
+
+print_coefs <- function(fit, nknot, ncoef) {
+  x <- paste0(
+    number(coef(fit), accuracy = .001)[-1],
+    "*",
+    "b", rep(1:ncoef, each = nknot), ",", rep(1:nknot, ncoef),
+    str_extract_all(names(coef(fit))[-1], "\\(([^)]+)\\)", simplify = TRUE)
+  )
+  my_matrix <- matrix(x, ncol = nknot, byrow = TRUE)
+  for (row in 1:nrow(my_matrix)) {
+    cat(paste(my_matrix[row, ], collapse = " + "), "+ \n")
+  }
+}
+
+print_coefs(fit_bias, 6, 6)
+print_coefs(fit_attitude, 6, 4)
+```
+
+# Submission text box
+
+>CRITICALLY: We need to be able to run this code on the test data and have it work immediately or "out of the box." Therefore, all code needed to create variables, transform variables etc, needs to be included if it is in your final model.
+Final submitted model may look something generally like this, which is the Prejudice 1.0 Bias model:
+bias = .120*threat_g + .173*threat_s -.209*contact_q - .119*contact_n + .523*identification_si
+If you are submitting two models (one for bias and one for outgroup_att, just put both here)
+Please revisit our rules to confirm what qualifies as a viable submission.
+
+Our models are the same as "Model 1.0" but we modeled each outcome as a smooth function of the predictors using splines (GAM) and included agreeableness in the bias model. Below we print the coefficient values B[j,k] of the model's j...J predictors (J bias = 6, J attitude = 4) and k...K = 6 basis functions. We omit intercepts and error terms. We used thin plate regression splines as basis functions.
+
+For brevity, we abbreviated variables to \
+- tg = threat generalized \
+- ts = threat symbolic \
+- cn = contact number (of friends) \
+- cq = contact quality \
+- i = identification \
+- a = agreeableness
+
+## Bias
+
+```
+-0.167*b1,1(tg) + 0.113*b1,2(tg) + -0.076*b1,3(tg) + 
+    -0.010*b1,4(tg) + -1.003*b1,5(tg) + 0.111*b1,6(tg) + 
+0.031*b2,1(ts) + -0.026*b2,2(ts) + -0.009*b2,3(ts) + 
+    0.009*b2,4(ts) + -0.095*b2,5(ts) + 0.324*b2,6(ts) + 
+0.000*b3,1(cn) + 0.000*b3,2(cn) + 0.000*b3,3(cn) + 
+    0.000*b3,4(cn) + 0.000*b3,5(cn) + -0.150*b3,6(cn) + 
+0.003*b4,1(cq) + -0.027*b4,2(cq) + -0.009*b4,3(cq) + 
+    -0.025*b4,4(cq) + -0.185*b4,5(cq) + -0.371*b4,6(cq) + 
+0.165*b5,1(i) + -0.193*b5,2(i) + -0.028*b5,3(i) + 
+    -0.089*b5,4(i) + 0.508*b5,5(i) + 0.570*b5,6(i) + 
+0.008*b6,1(a) + 0.013*b6,2(a) + -0.003*b6,3(a) + 
+    0.008*b6,4(a) + 0.034*b6,5(a) + 0.049*b6,6(a)
+```
+
+## Attitude
+
+```
+-0.011*b1,1(ts) + 0.000*b1,2(ts) + -0.001*b1,3(ts) + 
+    0.015*b1,4(ts) + -0.122*b1,5(ts) + 0.621*b1,6(ts) + 
+0.000*b2,1(cn) + 0.000*b2,2(cn) + 0.000*b2,3(cn) + 
+    0.000*b2,4(cn) + 0.000*b2,5(cn) + -0.190*b2,6(cn) + 
+0.011*b3,1(cq) + -0.061*b3,2(cq) + -0.016*b3,3(cq) + 
+    -0.065*b3,4(cq) + -0.464*b3,5(cq) + -0.411*b3,6(cq) + 
+0.000*b4,1(a) + 0.000*b4,2(a) + 0.000*b4,3(a) + 
+    0.000*b4,4(a) + 0.000*b4,5(a) + 0.149*b4,6(a) + 
+```
+
+## Model performance
+
+```
+  Model    r2adj  rmse
+  Bias     0.606 0.861
+  Attitude 0.425 1.04 
+```
+
+# Appendix
+
+To make some sense of these coefficients we draw the estimated smooths for the bias model in @fig-bias and for the attitude model in @fig-attitude.
+
+```{r}
+#| label: fig-bias
+#| fig-cap: Estimated bias model smooths
+#| fig-height: 5
+
+draw(fit_bias, rug = FALSE, residuals = TRUE)
+```
+
+```{r}
+#| label: fig-attitude
+#| fig-cap: Estimated attitude model smooths
+#| fig-height: 5
+
+draw(fit_attitude, rug = FALSE, residuals = TRUE)
+```
