@@ -21,7 +21,7 @@ knitr:
     echo: false
 license: "CC BY"
 format: 
-  pdf: 
+  typst: 
    toc: false
 bibliography: references.bib
 ---

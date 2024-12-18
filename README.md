@@ -6,7 +6,7 @@ Submission to prejudice modelling competition
 
 ## Reproduce
 
-We conducted our analyses as a Quarto R notebook whose R environment is managed by renv. To reproduce, render the Quarto project. Optimally also ensure you have the same R environment as us. To be exact,
+We conducted our analyses as a Quarto R notebook whose R environment is managed by renv. To reproduce, render the Quarto project ([Quarto](https://quarto.org/docs/get-started/) required). Optimally also ensure you have the same R environment as us. To be exact,
 
 ```bash
 git clone https://github.com/mvuorre/oblivious-octopus.git
